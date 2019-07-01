@@ -5,7 +5,6 @@ using System.IO;
 using System.Windows.Forms;
 using unirest_net.http;
 using System.Linq;
-using RestSharp;
 using System.Diagnostics;
 
 // This is the code for your desktop app.
@@ -18,12 +17,14 @@ namespace ZenResourceDuplicator {
         public static Dictionary<int, string> owners;
         public static JObject data;
 
-
+        /// <summary>
+        /// Form contructor. Runs serveral setup calls.
+        /// </summary>
         public Form1() {
-            InitializeComponent();
-            comboBox1.SelectedIndex = 0;
-            token = LoadToken();
-            owners = LoadOwners();
+            InitializeComponent();//build form
+            comboBox1.SelectedIndex = 0; //pick first object type list
+            token = LoadToken(); // reads in API key
+            owners = LoadOwners(); // fetches a list of owners
             Object[] ownerArray = new Object[owners.Count];
             int[] keys = owners.Keys.ToArray();
 
@@ -38,18 +39,13 @@ namespace ZenResourceDuplicator {
             }
         }
 
-        private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
-            // Click on the link below to continue learning how to build a desktop app using WinForms!
-            System.Diagnostics.Process.Start("http://aka.ms/dotnet-get-started-desktop");
-
-        }
-
-        private void button1_Click(object sender, EventArgs e) {
-            MessageBox.Show("Thanks!");
-        }
-
+        /// <summary>
+        /// loads plain text api key from a file called token
+        /// </summary>
+        /// <returns>API Key</returns>
         private string LoadToken() {
             string tStr = "";
+            //default location
             fileStream = new FileStream(@"C:\apps\NiceOffice\token", FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             using (var sr = new StreamReader(fileStream)) {
                 tStr = sr.ReadToEnd();
@@ -59,9 +55,16 @@ namespace ZenResourceDuplicator {
 
             if (tStr != null && tStr != "") {
                 return tStr;
-            } else return "#ERROR";
+            } else return "#ERROR";//error checking in calling function.
         }
 
+
+        /// <summary>
+        /// makes a get call using Unirest. Returns response as string.
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="token"></param>
+        /// <returns>string of the JSON data</returns>
         public static string Get(string url, string token) {
             string body = "";
             try {
@@ -77,6 +80,13 @@ namespace ZenResourceDuplicator {
             }
         }
 
+        /// <summary>
+        /// makes post call and returns JObject using Unirest
+        /// </summary>
+        /// <param name="url"></param>
+        /// <param name="token"></param>
+        /// <param name="body"></param>
+        /// <returns></returns>
         public static JObject Post(string url, string token, JObject body) {
             JObject jBody = new JObject();
             jBody["data"] = data;
@@ -100,36 +110,22 @@ namespace ZenResourceDuplicator {
             }
         }
 
-        public static JObject PostNew(string url, string token, JObject body) {
-            JObject jBody = new JObject();
-            jBody["data"] = data;
-
-            var client = new RestClient(url);
-            var request = new RestRequest(Method.POST);
-            request.AddHeader("cache-control", "no-cache");
-            request.AddHeader("Connection", "keep-alive");
-            request.AddHeader("content-length", "832");
-            request.AddHeader("accept-encoding", "gzip, deflate");
-            request.AddHeader("Host", "api.getbase.com");
-            request.AddHeader("Postman-Token", token);
-            request.AddHeader("Cache-Control", "no-cache");
-            request.AddHeader("User-Agent", "PostmanRuntime/7.15.0");
-            request.AddHeader("Content-Type", "application/json");
-            request.AddHeader("Authorization", "Bearer 5bbddd26f6610378ef1c848952fd461e5c60bf55d609699ec3b28eb571bb3da7");
-            request.AddHeader("Accept", "application/json");
-            request.AddParameter("undefined", jBody.ToString(), ParameterType.RequestBody);
-            IRestResponse response = client.Execute(request);
-
-
-            return jBody;
-        }
-
+        /// <summary>
+        /// Returns the load or contact from Base
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="id"></param>
+        /// <returns></returns>
         private JObject GetResource(string type, int id) {
             string tJSON = Get(@"https://api.getbase.com/v2/" + type + @"/" + id, token);
             JObject jObj = JObject.Parse(tJSON) as JObject;
             return jObj["data"] as JObject;
         }
 
+        /// <summary>
+        /// fetches a list of the active users in base that can be assinged a resource
+        /// </summary>
+        /// <returns></returns>
         private Dictionary<int, string> LoadOwners() {
             Dictionary<int, string> tDict = new Dictionary<int, string>();
 
@@ -147,17 +143,33 @@ namespace ZenResourceDuplicator {
             return tDict;
         }
 
+        /// <summary>
+        /// Listener to turn off new tag text field
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void rbNo_CheckedChanged(object sender, EventArgs e) {
             txtNewTag.Visible = !rbNo.Checked;
         }
 
+        /// <summary>
+        /// Listener to turn off new tag text field
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void rbYes_CheckedChanged(object sender, EventArgs e) {
             txtNewTag.Visible = rbYes.Checked;
         }
 
+        /// <summary>
+        /// On enter being pressed in the resource id text field
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void txtRID_KeyUp(object sender, KeyEventArgs e) {
             if(e.KeyCode == Keys.Enter) {
                 int ID = -1;
+                //if not numberic
                 if(!Int32.TryParse(txtRID.Text,out ID)){
                     MessageBox.Show("Resource ID must be numeric", "ERROR - ID Number", MessageBoxButtons.OK);
                     btnGo.Enabled = false;
@@ -166,12 +178,14 @@ namespace ZenResourceDuplicator {
                 
                 string rType = (comboBox1.SelectedIndex == 0) ? "leads" : "contacts";
                 data = GetResource(rType, Convert.ToInt32(txtRID.Text));
-                if(data == null) {
+
+                //error check on getting resource
+                if (data == null) {
                     MessageBox.Show("Error fetching the resource!\nTry checking type and ID number", "ERROR - Fetching", MessageBoxButtons.OK);
                     btnGo.Enabled = false;
                     return;
                 }
-
+                
                 lblCurrentTags.Text = data["tags"].ToString();
                 lblCurrentTags.Visible = true;
                 lblRName.Text = data["first_name"].ToString() + " " + data["last_name"].ToString();
@@ -179,8 +193,13 @@ namespace ZenResourceDuplicator {
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void btnGo_Click(object sender, EventArgs e) {
-            if(cbOwners.SelectedIndex == null || cbOwners.SelectedIndex == -1) {
+            if(cbOwners.SelectedIndex == -1) {
                 MessageBox.Show("Please Choose a new owner first", "PICK NEW OWNER", MessageBoxButtons.OK);
                 return;
             }
@@ -242,6 +261,11 @@ namespace ZenResourceDuplicator {
             }
         }
 
+        /// <summary>
+        /// launch website on the created resource
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void lblLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
             string url;
             if (e.Link.LinkData != null)
